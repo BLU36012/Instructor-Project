@@ -1,35 +1,25 @@
-import os
-import instructor
-import google.generativeai as genai
+from fastapi import FastAPI
 from pydantic import BaseModel
+import instructor
+from google import genai
 
-# 1. The SDK will automatically use the GEMINI_API_KEY environment variable 
-# you just set in PowerShell.
-genai.configure() 
+app = FastAPI()
+client = instructor.from_genai(genai.Client())
 
-# 2. Initialize the Gemini model and patch it with Instructor
-# Note: You can change the model name to gemini-1.5-pro if needed
-client = instructor.from_gemini(
-    client=genai.GenerativeModel(
-        model_name="models/gemini-1.5-flash" 
-    )
-)
-
-# 3. Define the structure you want the AI to return using Pydantic
-class UserInfo(BaseModel):
+class UserProfile(BaseModel):
     name: str
     age: int
-    occupation: str
+    role: str
 
-# 4. Prompt the model
-response = client.chat.completions.create(
-    response_model=UserInfo,
-    messages=[
-        {"role": "user", "content": "My name is Ryan, I'm 21, and I am a Project Manager."}
-    ]
-)
+class UserRequest(BaseModel):
+    user_input: str
 
-# 5. The response is now a strongly typed Python object!
-print(f"Name: {response.name}")
-print(f"Age: {response.age}")
-print(f"Occupation: {response.occupation}")
+@app.post("/extract-profile")
+def extract_profile(request: UserRequest):
+    response = client.chat.completions.create(
+        model="gemini-3.5-flash",
+        response_model=UserProfile,
+        messages=[{"role": "user", "content": request.user_input}]
+    )
+    # FastAPI automatically converts the Pydantic object to a JSON response
+    return response
